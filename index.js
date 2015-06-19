@@ -6,6 +6,7 @@ var path = require('path');
 var os = require('os');
 var StringDecoder = require('string_decoder').StringDecoder;
 var fdSlicer = require('fd-slicer');
+var base64_stream = require('base64-stream');
 
 var START = 0;
 var START_BOUNDARY = 1;
@@ -461,11 +462,7 @@ Form.prototype.onParseHeaderEnd = function() {
 }
 
 Form.prototype.onParsePartData = function(b) {
-  if (this.partTransferEncoding === 'base64') {
-    this.backpressure = ! this.destStream.write(b.toString('ascii'), 'base64');
-  } else {
-    this.backpressure = ! this.destStream.write(b);
-  }
+  this.backpressure = ! this.destStream.write(b);
 }
 
 Form.prototype.onParsePartEnd = function() {
@@ -498,7 +495,12 @@ Form.prototype.onParseHeadersEnd = function(offset) {
     return createError(413, 'maxFields ' + self.maxFields + ' exceeded.');
   }
 
-  self.destStream = new stream.PassThrough();
+
+  if(self.partTransferEncoding=='base64')
+    self.destStream = new base64_stream.decode();
+  else
+    self.destStream = new stream.PassThrough();
+
   self.destStream.on('drain', function() {
     flushWriteCbs(self);
   });
